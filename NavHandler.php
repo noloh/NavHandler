@@ -1,6 +1,8 @@
 <?php
-class NavHandler extends Object
+class NavHandler extends Base
 {
+	const Solo = 'solo';
+
 	private $ActiveSection;
 	private $Launched;
 	private $ContentPanel;
