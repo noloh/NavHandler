@@ -15,7 +15,7 @@ class NavHandler extends Base
 	
 	static $Section, $Width, $Height;
 	
-	function NavHandler($contentPanel, $creationFunction, $group = null, $tokenName='section')
+	function __construct($contentPanel, $creationFunction, $group = null, $tokenName = 'section')
 	{
 		$this->ContentPanel = $contentPanel;
 		$this->Token = $tokenName;
@@ -34,76 +34,115 @@ class NavHandler extends Base
 			}
 		}
 	}
+	/**
+	 * Tells NavHandler to launch a particular section.
+	 *
+	 * @param string $section
+	 * @param bool|NavHandler::Solo $reCreate
+	 * - true: forces recreation of a section
+	 * - false: uses a previous instance if any exist
+	 * - NavHandler: simply adds the object to the ContentPanel specified WITHOUT keeping track of it. This is useful
+	 * for things like windows.
+	 * @return Base
+	 */
 	function LaunchSection($section = null, $reCreate = false)
 	{
-		if($section instanceof Group)
+		if ($section instanceof Group)
+		{
 			$section = $section->SelectedValue;
-		if($this->ActiveSection == $section)
-			return;
+		}
+
+		if (!$reCreate && $this->ActiveSection == $section)
+		{
+			return null;
+		}
+
 		$parent = $this->ContentPanel;
-		
-		if($this->Launched[$section] == null || $reCreate)
+
+		if ($this->Launched[$section] == null || $reCreate)
 		{
 			self::$Section = $section;
 			self::$Width = $parent->Width;
 			self::$Height = $parent->Height;
-			
-			if(isset($this->Launched[$section]))
-				$this->Launched[$section]->Leave();
-				
-			$object = $this->CreationFunction->Exec();
-			if($object)
+
+			if ($reCreate !== self::Solo && isset($this->Launched[$section]))
 			{
-				$this->Launched[$section] = $object;
-				$this->ContentPanel->Controls->Add($this->Launched[$section]);
+				$this->Launched[$section]->Leave();
+			}
+
+			$object = $this->CreationFunction->Exec();
+			if ($object)
+			{
+				if ($reCreate !== self::Solo)
+				{
+					$this->Launched[$section] = $object;
+				}
+				$this->ContentPanel->Controls->Add($object);
 			}
 			else
 			{
 				$this->ActiveSection = $section;
-				return;
+				return null;
 			}
 		}
-		if($this->Token)	
+		if ($this->Token)
+		{
 			URL::SetToken($this->Token, $section);
-		if(isset($this->Animate) && isset($this->Group))
+		}
+
+		if (isset($this->Animate) && isset($this->Group))
 		{
 			$selectedPosition = $this->Group->SelectedPosition;
 		}
-//		System::Log($this->PrevIndex, $selectedPosition);
-		if(isset($this->Animate) && $this->PrevIndex !== null)
+
+		if ($reCreate !== self::Solo)
 		{
-			$animateLeft = false;
-			if(isset($this->Group))
+			if (isset($this->Animate) && $this->PrevIndex !== null)
 			{
-//				System::Log($selectedPosition, $this->PrevIndex);
-				$animateLeft = $selectedPosition > $this->PrevIndex;
+				$animateLeft = false;
+				if (isset($this->Group))
+				{
+						$animateLeft = $selectedPosition > $this->PrevIndex;
+				}
+				$activePanel = $this->Launched[$section];
+				$properties = $this->Animate == System::Horizontal?array('Left', 'Width'):array('Top', 'Height');
+				$magnitude = $activePanel->{$properties[1]};
+				$animateProp = $properties[0];
+				$activePanel->$animateProp = $animateLeft?$magnitude:(-1 * $magnitude);
+
+				Animate::$animateProp($activePanel, 0, 500);
+				if($this->ActiveSection != null)
+				{
+						$activePanel = $this->Launched[$this->ActiveSection];
+						$to = $animateLeft?(-1 * $magnitude):$magnitude;
+						Animate::$animateProp($activePanel, $to, 500);
+				}
 			}
-			$activePanel = $this->Launched[$section];
-			$properties = $this->Animate == System::Horizontal?array('Left', 'Width'):array('Top', 'Height');
-			$magnitude = $activePanel->{$properties[1]};	
-			$animateProp = $properties[0];
-			$activePanel->$animateProp = $animateLeft?$magnitude:(-1 * $magnitude);
-				
-			Animate::$animateProp($activePanel, 0, 500);
-			if($this->ActiveSection != null)
+			elseif($this->ActiveSection != null)
 			{
-				$activePanel = $this->Launched[$this->ActiveSection];
-				$to = $animateLeft?(-1 * $magnitude):$magnitude;
-				Animate::$animateProp($activePanel, $to, 500);
+				$this->Launched[$this->ActiveSection]->Visible = false;
 			}
+
+			if (isset($this->Animate))
+			{
+				$this->PrevIndex = $selectedPosition;
+			}
+
+			$this->ActiveSection = $section;
+			$this->Launched[$section]->Visible = true;
 		}
-		elseif($this->ActiveSection != null)
-			$this->Launched[$this->ActiveSection]->Visible = System::Vacuous;
-		if(isset($this->Animate))
-			$this->PrevIndex = $selectedPosition;	
-		$this->ActiveSection = $section;
-		$this->Launched[$section]->Visible = true;
 	}
 	function SetAnimate($animate)
 	{
 		$this->Animate = $animate;
 	}
-	function GetContentPanel()	{return $this->ContentPanel;}
-	function GetActiveSection()	{return $this->ActiveSection;}
+	function GetContentPanel()
+	{
+		return $this->ContentPanel;
+	}
+	function GetActiveSection()
+	{
+		return $this->ActiveSection;
+	}
 }
 ?>
