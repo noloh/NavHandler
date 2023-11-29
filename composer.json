@@ -1,0 +1,6 @@
+{
+  "name": "noloh/NavHandler",
+  "description": "Allows for drop-in navigation between objects, including the generation of bookmarkable tokens",
+  "require": {
+  }
+}
